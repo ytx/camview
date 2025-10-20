@@ -763,7 +763,6 @@
         let db = null;
         let isPlayingRecording = false;
         let currentPlayingIndex = -1;
-        let isFirstLoad = true;
 
         const MAX_RECORDING_DURATION = 60000; // 60秒
         const MAX_RECORDINGS = 3;
@@ -1731,11 +1730,8 @@
             updateCameraCheckboxList();
             saveSettings();
             
-            // 初回ロード時のみトーストを表示
-            if (isFirstLoad) {
-                isFirstLoad = false;
-                setTimeout(() => showToast(5000), 500);
-            }
+            // トーストを表示
+            setTimeout(() => showToast(5000), 500);
         }
 
         // エクスポート
@@ -2006,11 +2002,8 @@
                     await startCamera(selectedCameras[currentCameraIndex].deviceId);
                     updateCameraCheckboxList();
                     
-                    // 初回ロード時のみトーストを表示
-                    if (isFirstLoad) {
-                        isFirstLoad = false;
-                        setTimeout(() => showToast(5000), 500);
-                    }
+                    // トーストを表示
+                    setTimeout(() => showToast(5000), 500);
                     
                     // MQTT自動接続
                     const mqttSettings = getMqttSettings();
