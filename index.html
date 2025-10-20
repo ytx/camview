@@ -789,7 +789,11 @@
             const videoWidth = video.videoWidth;
             const videoHeight = video.videoHeight;
             
-            if (!videoWidth || !videoHeight) return;
+            if (!videoWidth || !videoHeight) {
+                // メタデータが読み込まれていない場合は待つ
+                requestAnimationFrame(() => applyVideoCrop(settings));
+                return;
+            }
             
             // カメラが1920x1080でない場合、中央の1920x1080相当を切り出す
             let cropSourceX = 0;
@@ -815,12 +819,18 @@
                 cropSourceY = (videoHeight - sourceHeight) / 2;
             }
             
+            // コンテナのサイズを取得
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            if (!containerWidth || !containerHeight) {
+                // コンテナサイズが取得できない場合は待つ
+                requestAnimationFrame(() => applyVideoCrop(settings));
+                return;
+            }
+            
             if (settings.sizeX1 !== 0 || settings.sizeY1 !== 0 || 
                 settings.sizeX2 !== 1920 || settings.sizeY2 !== 1080) {
-                
-                // コンテナのサイズを取得
-                const containerWidth = container.clientWidth;
-                const containerHeight = container.clientHeight;
                 
                 // 1920x1080基準での表示範囲の比率計算
                 const scaleX = sourceWidth / 1920;
@@ -836,8 +846,8 @@
                 const cropWidth = actualX2 - actualX1;
                 const cropHeight = actualY2 - actualY1;
                 
-                // 表示スケールの計算（コンテナに合わせる）
-                const displayScale = Math.min(containerWidth / cropWidth, containerHeight / cropHeight);
+                // 表示スケールの計算（コンテナいっぱいに表示）
+                const displayScale = Math.max(containerWidth / cropWidth, containerHeight / cropHeight);
                 
                 // ビデオ要素のサイズ
                 const displayVideoWidth = videoWidth * displayScale;
@@ -859,9 +869,7 @@
                 video.style.clipPath = 'none';
                 
             } else {
-                // クロップなし - 16:9の中央部分を表示
-                const containerWidth = container.clientWidth;
-                const containerHeight = container.clientHeight;
+                // クロップなし - 16:9の中央部分をコンテナいっぱいに表示
                 
                 // コンテナのアスペクト比に応じてスケール調整
                 const containerAspect = containerWidth / containerHeight;
@@ -1281,6 +1289,8 @@
             document.getElementById('videoContainer').classList.add('settings-open');
             loadSettingsToUI();
             updateVideoList();
+            // 設定画面のレイアウト変更後に再描画
+            setTimeout(() => applyVideoSettings(), 50);
         }
 
         // 設定画面を閉じる
@@ -1288,7 +1298,8 @@
             document.getElementById('settingsPanel').classList.remove('open');
             document.getElementById('videoContainer').classList.remove('settings-open');
             saveSettingsFromUI();
-            applyVideoSettings();
+            // レイアウト変更後に再描画
+            setTimeout(() => applyVideoSettings(), 50);
         }
 
         // UIから設定を保存
