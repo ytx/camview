@@ -743,7 +743,7 @@
         
         <div id="toast">
             <h3>キーボード操作</h3>
-            <p>←/→: カメラ切り替え | S: 設定 | F: フルスクリーン | R: 録画 | 1/2/3: 再生 | ESC: 閉じる/停止</p>
+            <p>←/→: カメラ切り替え | S: 設定 | F: フルスクリーン | R: 録画 | 1/2/3: 再生 | 0: 停止</p>
         </div>
     </div>
 
@@ -1842,10 +1842,13 @@
                         openSettings();
                     }
                 } else if (e.key === 'Escape') {
+                    if (document.getElementById('settingsPanel').classList.contains('open')) {
+                        closeSettings();
+                    }
+                } else if (e.key === '0' && !settingsOpen) {
+                    e.preventDefault();
                     if (isPlayingRecording) {
                         stopPlayback();
-                    } else if (document.getElementById('settingsPanel').classList.contains('open')) {
-                        closeSettings();
                     }
                 } else if (e.key === 'f' || e.key === 'F') {
                     e.preventDefault();
