@@ -763,6 +763,7 @@
         let db = null;
         let isPlayingRecording = false;
         let currentPlayingIndex = -1;
+        let hasShownToast = false;
 
         const MAX_RECORDING_DURATION = 60000; // 60秒
         const MAX_RECORDINGS = 3;
@@ -894,8 +895,11 @@
                 // ビデオのメタデータが読み込まれたら設定を適用
                 video.onloadedmetadata = () => {
                     applyVideoSettings();
-                    // カメラが表示されたらトーストを表示
-                    showToast(5000);
+                    // 初回起動時のみトーストを表示
+                    if (!hasShownToast) {
+                        hasShownToast = true;
+                        showToast(5000);
+                    }
                 };
                 
                 return true;
