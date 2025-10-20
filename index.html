@@ -894,6 +894,8 @@
                 // ビデオのメタデータが読み込まれたら設定を適用
                 video.onloadedmetadata = () => {
                     applyVideoSettings();
+                    // カメラが表示されたらトーストを表示
+                    showToast(5000);
                 };
                 
                 return true;
@@ -1729,9 +1731,6 @@
             await startCamera(selectedCameras[0].deviceId);
             updateCameraCheckboxList();
             saveSettings();
-            
-            // トーストを表示
-            setTimeout(() => showToast(5000), 500);
         }
 
         // エクスポート
@@ -2001,9 +2000,6 @@
                     currentCameraIndex = Math.min(settings.currentCameraIndex || 0, selectedCameras.length - 1);
                     await startCamera(selectedCameras[currentCameraIndex].deviceId);
                     updateCameraCheckboxList();
-                    
-                    // トーストを表示
-                    setTimeout(() => showToast(5000), 500);
                     
                     // MQTT自動接続
                     const mqttSettings = getMqttSettings();
