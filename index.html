@@ -1266,8 +1266,8 @@
             document.getElementById('videoContainer').classList.add('settings-open');
             loadSettingsToUI();
             updateVideoList();
-            // 設定画面のレイアウト変更後に再描画
-            setTimeout(() => applyVideoSettings(), 50);
+            // CSSトランジション完了を待ってから再描画
+            setTimeout(() => applyVideoSettings(), 350);
         }
 
         // 設定画面を閉じる
@@ -1275,8 +1275,8 @@
             document.getElementById('settingsPanel').classList.remove('open');
             document.getElementById('videoContainer').classList.remove('settings-open');
             saveSettingsFromUI();
-            // レイアウト変更後に再描画
-            setTimeout(() => applyVideoSettings(), 50);
+            // CSSトランジション完了を待ってから再描画
+            setTimeout(() => applyVideoSettings(), 350);
         }
 
         // UIから設定を保存
