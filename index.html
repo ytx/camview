@@ -50,14 +50,14 @@
         }
 
         video {
-            width: 100%;
-            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
             position: relative;
             z-index: 1;
         }
         
-        video.aspect-16-9 {
+        #videoContainer:not(.settings-open) video {
             aspect-ratio: 16 / 9;
         }
 
@@ -132,8 +132,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #1a1a1a;
-            z-index: 1002;
+            background: rgba(26, 26, 26, 0.95);
+            z-index: 1000;
         }
 
         #settingsPanel.open {
@@ -152,7 +152,7 @@
         .settings-video {
             grid-column: 1;
             grid-row: 1;
-            background: transparent;
+            pointer-events: none;
         }
 
         .settings-controls {
@@ -784,11 +784,12 @@
                 
                 // ビデオのサイズと位置を計算
                 // ビデオはコンテナ全体（1920x1080基準）に合わせて拡大
+                video.style.maxWidth = 'none';
+                video.style.maxHeight = 'none';
                 video.style.width = `${containerWidth}px`;
                 video.style.height = `${containerHeight}px`;
                 video.style.objectFit = 'fill';
                 video.style.position = 'absolute';
-                video.style.aspectRatio = '';
                 
                 // クリップパスで表示領域を制限
                 // x1,y1-x2,y2の領域だけを表示
@@ -810,14 +811,15 @@
                 
             } else {
                 // クロップなし
-                video.style.width = '100%';
-                video.style.height = '100%';
+                video.style.maxWidth = '100%';
+                video.style.maxHeight = '100%';
+                video.style.width = '';
+                video.style.height = '';
                 video.style.objectFit = 'contain';
                 video.style.position = 'relative';
                 video.style.left = '0';
                 video.style.top = '0';
                 video.style.clipPath = 'none';
-                video.style.aspectRatio = '';
             }
         }
 
@@ -1211,8 +1213,6 @@
         function openSettings() {
             document.getElementById('settingsPanel').classList.add('open');
             document.getElementById('videoContainer').classList.add('settings-open');
-            const video = document.getElementById('video');
-            video.classList.remove('aspect-16-9');
             loadSettingsToUI();
             updateVideoList();
         }
@@ -1221,8 +1221,6 @@
         function closeSettings() {
             document.getElementById('settingsPanel').classList.remove('open');
             document.getElementById('videoContainer').classList.remove('settings-open');
-            const video = document.getElementById('video');
-            video.classList.add('aspect-16-9');
             saveSettingsFromUI();
             applyVideoSettings();
         }
@@ -1382,11 +1380,6 @@
             currentCameraIndex = 0;
             await startCamera(selectedCameras[0].deviceId);
             updateCameraCheckboxList();
-            
-            // 16:9アスペクト比を設定
-            const video = document.getElementById('video');
-            video.classList.add('aspect-16-9');
-            
             saveSettings();
         }
 
@@ -1622,10 +1615,6 @@
                     currentCameraIndex = Math.min(settings.currentCameraIndex || 0, selectedCameras.length - 1);
                     await startCamera(selectedCameras[currentCameraIndex].deviceId);
                     updateCameraCheckboxList();
-                    
-                    // 16:9アスペクト比を設定
-                    const video = document.getElementById('video');
-                    video.classList.add('aspect-16-9');
                     
                     // MQTT自動接続
                     const mqttSettings = getMqttSettings();
