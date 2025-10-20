@@ -56,6 +56,10 @@
             position: relative;
             z-index: 1;
         }
+        
+        video.aspect-16-9 {
+            aspect-ratio: 16 / 9;
+        }
 
         .error-message {
             position: absolute;
@@ -148,6 +152,7 @@
         .settings-video {
             grid-column: 1;
             grid-row: 1;
+            background: transparent;
         }
 
         .settings-controls {
@@ -783,6 +788,7 @@
                 video.style.height = `${containerHeight}px`;
                 video.style.objectFit = 'fill';
                 video.style.position = 'absolute';
+                video.style.aspectRatio = '';
                 
                 // クリップパスで表示領域を制限
                 // x1,y1-x2,y2の領域だけを表示
@@ -811,6 +817,7 @@
                 video.style.left = '0';
                 video.style.top = '0';
                 video.style.clipPath = 'none';
+                video.style.aspectRatio = '';
             }
         }
 
@@ -1204,6 +1211,8 @@
         function openSettings() {
             document.getElementById('settingsPanel').classList.add('open');
             document.getElementById('videoContainer').classList.add('settings-open');
+            const video = document.getElementById('video');
+            video.classList.remove('aspect-16-9');
             loadSettingsToUI();
             updateVideoList();
         }
@@ -1212,7 +1221,10 @@
         function closeSettings() {
             document.getElementById('settingsPanel').classList.remove('open');
             document.getElementById('videoContainer').classList.remove('settings-open');
+            const video = document.getElementById('video');
+            video.classList.add('aspect-16-9');
             saveSettingsFromUI();
+            applyVideoSettings();
         }
 
         // UIから設定を保存
@@ -1370,6 +1382,11 @@
             currentCameraIndex = 0;
             await startCamera(selectedCameras[0].deviceId);
             updateCameraCheckboxList();
+            
+            // 16:9アスペクト比を設定
+            const video = document.getElementById('video');
+            video.classList.add('aspect-16-9');
+            
             saveSettings();
         }
 
@@ -1605,6 +1622,10 @@
                     currentCameraIndex = Math.min(settings.currentCameraIndex || 0, selectedCameras.length - 1);
                     await startCamera(selectedCameras[currentCameraIndex].deviceId);
                     updateCameraCheckboxList();
+                    
+                    // 16:9アスペクト比を設定
+                    const video = document.getElementById('video');
+                    video.classList.add('aspect-16-9');
                     
                     // MQTT自動接続
                     const mqttSettings = getMqttSettings();
