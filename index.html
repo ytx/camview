@@ -36,6 +36,7 @@
             justify-content: center;
             transition: all 0.3s ease;
             z-index: 999;
+            overflow: hidden;
         }
 
         #videoContainer:not(.settings-open) {
@@ -45,6 +46,12 @@
             top: 0;
             left: 0;
             z-index: 1;
+        }
+        
+        .crop-overlay {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
         }
 
         #videoContainer.mqtt-error {
@@ -804,84 +811,66 @@
                 return;
             }
             
-            // コンテナのサイズを取得（CSSで計算されたサイズ）
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
+            // 既存のオーバーレイを削除
+            const existingOverlays = container.querySelectorAll('.crop-overlay');
+            existingOverlays.forEach(overlay => overlay.remove());
             
-            if (!containerWidth || !containerHeight) {
-                // コンテナサイズが取得できない場合は待つ
-                requestAnimationFrame(() => applyVideoCrop(settings));
-                return;
-            }
-            
-            // カメラが1920x1080でない場合の処理
-            const targetAspect = 16 / 9;
-            const videoAspect = videoWidth / videoHeight;
+            // カメラ映像を100%表示
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.maxWidth = '';
+            video.style.maxHeight = '';
+            video.style.objectFit = 'cover';
+            video.style.position = 'absolute';
+            video.style.left = '0';
+            video.style.top = '0';
+            video.style.clipPath = 'none';
             
             if (settings.sizeX1 !== 0 || settings.sizeY1 !== 0 || 
                 settings.sizeX2 !== 1920 || settings.sizeY2 !== 1080) {
                 
-                // クロップあり
-                // 1920x1080基準のクロップ座標を実際のビデオサイズに変換
-                let sourceWidth = videoWidth;
-                let sourceHeight = videoHeight;
-                let cropSourceX = 0;
-                let cropSourceY = 0;
+                // クロップ領域が指定されている場合、オーバーレイを作成
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
                 
-                // 16:9部分を切り出す
-                if (videoAspect > targetAspect) {
-                    sourceHeight = videoHeight;
-                    sourceWidth = videoHeight * targetAspect;
-                    cropSourceX = (videoWidth - sourceWidth) / 2;
-                } else if (videoAspect < targetAspect) {
-                    sourceWidth = videoWidth;
-                    sourceHeight = videoWidth / targetAspect;
-                    cropSourceY = (videoHeight - sourceHeight) / 2;
+                if (!containerWidth || !containerHeight) {
+                    requestAnimationFrame(() => applyVideoCrop(settings));
+                    return;
                 }
                 
-                const scaleX = sourceWidth / 1920;
-                const scaleY = sourceHeight / 1080;
+                // 1920x1080基準からコンテナサイズへの変換比率
+                const scaleX = containerWidth / 1920;
+                const scaleY = containerHeight / 1080;
                 
-                // クロップ領域の実際のピクセル座標
-                const actualX1 = cropSourceX + settings.sizeX1 * scaleX;
-                const actualY1 = cropSourceY + settings.sizeY1 * scaleY;
-                const actualX2 = cropSourceX + settings.sizeX2 * scaleX;
-                const actualY2 = cropSourceY + settings.sizeY2 * scaleY;
+                const x1 = settings.sizeX1 * scaleX;
+                const y1 = settings.sizeY1 * scaleY;
+                const x2 = settings.sizeX2 * scaleX;
+                const y2 = settings.sizeY2 * scaleY;
                 
-                const cropWidth = actualX2 - actualX1;
-                const cropHeight = actualY2 - actualY1;
+                // 4つの長方形を作成
+                const overlays = [
+                    // 左側: 0,0 - x1,containerHeight
+                    { left: 0, top: 0, width: x1, height: containerHeight },
+                    // 上側: x1,0 - x2,y1
+                    { left: x1, top: 0, width: x2 - x1, height: y1 },
+                    // 右側: x2,0 - containerWidth,containerHeight
+                    { left: x2, top: 0, width: containerWidth - x2, height: containerHeight },
+                    // 下側: x1,y2 - x2,containerHeight
+                    { left: x1, top: y2, width: x2 - x1, height: containerHeight - y2 }
+                ];
                 
-                // 表示スケール
-                const displayScale = Math.max(containerWidth / cropWidth, containerHeight / cropHeight);
-                
-                const displayVideoWidth = videoWidth * displayScale;
-                const displayVideoHeight = videoHeight * displayScale;
-                
-                video.style.width = `${displayVideoWidth}px`;
-                video.style.height = `${displayVideoHeight}px`;
-                video.style.maxWidth = 'none';
-                video.style.maxHeight = 'none';
-                video.style.objectFit = 'none';
-                video.style.position = 'absolute';
-                
-                const offsetX = -actualX1 * displayScale + (containerWidth - cropWidth * displayScale) / 2;
-                const offsetY = -actualY1 * displayScale + (containerHeight - cropHeight * displayScale) / 2;
-                
-                video.style.left = `${offsetX}px`;
-                video.style.top = `${offsetY}px`;
-                video.style.clipPath = 'none';
-                
-            } else {
-                // クロップなし - シンプルに width: 100%, height: 100%, object-fit: cover
-                video.style.width = '100%';
-                video.style.height = '100%';
-                video.style.maxWidth = '';
-                video.style.maxHeight = '';
-                video.style.objectFit = 'cover';
-                video.style.position = 'absolute';
-                video.style.left = '0';
-                video.style.top = '0';
-                video.style.clipPath = 'none';
+                overlays.forEach((rect, index) => {
+                    if (rect.width > 0 && rect.height > 0) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'crop-overlay';
+                        overlay.style.left = `${rect.left}px`;
+                        overlay.style.top = `${rect.top}px`;
+                        overlay.style.width = `${rect.width}px`;
+                        overlay.style.height = `${rect.height}px`;
+                        overlay.style.backgroundColor = settings.backgroundColor;
+                        container.appendChild(overlay);
+                    }
+                });
             }
         }
 
