@@ -129,7 +129,7 @@
             width: 100%;
             height: 100%;
             background: #1a1a1a;
-            z-index: 1000;
+            z-index: 1002;
         }
 
         #settingsPanel.open {
@@ -769,55 +769,38 @@
             if (settings.sizeX1 !== 0 || settings.sizeY1 !== 0 || 
                 settings.sizeX2 !== 1920 || settings.sizeY2 !== 1080) {
                 
-                // ビデオの実際のサイズを取得
-                const videoWidth = video.videoWidth || 1920;
-                const videoHeight = video.videoHeight || 1080;
-                
-                // クロップ領域のサイズ
-                const cropWidth = settings.sizeX2 - settings.sizeX1;
-                const cropHeight = settings.sizeY2 - settings.sizeY1;
-                
-                // スケール計算（FullHD基準からビデオの実サイズへの変換）
-                const scaleX = videoWidth / 1920;
-                const scaleY = videoHeight / 1080;
-                
-                // ビデオ要素のサイズを調整（クロップ領域が画面全体に表示されるように拡大）
+                // コンテナのサイズを取得
                 const containerWidth = container.clientWidth;
                 const containerHeight = container.clientHeight;
                 
-                // クロップ領域のアスペクト比
-                const cropAspect = cropWidth / cropHeight;
-                const containerAspect = containerWidth / containerHeight;
+                // 1920x1080基準での表示範囲の比率計算
+                const scaleX = containerWidth / 1920;
+                const scaleY = containerHeight / 1080;
                 
-                let displayWidth, displayHeight;
-                if (containerAspect > cropAspect) {
-                    // コンテナの方が横長
-                    displayHeight = containerHeight;
-                    displayWidth = displayHeight * cropAspect;
-                } else {
-                    // コンテナの方が縦長
-                    displayWidth = containerWidth;
-                    displayHeight = displayWidth / cropAspect;
-                }
-                
-                // ビデオ全体のスケール（クロップ領域が表示サイズに合うように）
-                const videoScale = displayWidth / cropWidth;
-                
-                video.style.width = `${videoWidth * videoScale}px`;
-                video.style.height = `${videoHeight * videoScale}px`;
-                video.style.objectFit = 'none';
-                
-                // クロップ位置の調整（x1,y1の位置が左上に来るように）
-                const offsetX = -settings.sizeX1 * videoScale;
-                const offsetY = -settings.sizeY1 * videoScale;
-                
-                // 中央配置のための調整
-                const centerX = (containerWidth - displayWidth) / 2;
-                const centerY = (containerHeight - displayHeight) / 2;
-                
+                // ビデオのサイズと位置を計算
+                // ビデオはコンテナ全体（1920x1080基準）に合わせて拡大
+                video.style.width = `${containerWidth}px`;
+                video.style.height = `${containerHeight}px`;
+                video.style.objectFit = 'fill';
                 video.style.position = 'absolute';
-                video.style.left = `${centerX + offsetX}px`;
-                video.style.top = `${centerY + offsetY}px`;
+                
+                // クリップパスで表示領域を制限
+                // x1,y1-x2,y2の領域だけを表示
+                const clipX1 = settings.sizeX1 * scaleX;
+                const clipY1 = settings.sizeY1 * scaleY;
+                const clipX2 = settings.sizeX2 * scaleX;
+                const clipY2 = settings.sizeY2 * scaleY;
+                
+                // clip-pathを使用して表示領域を制限
+                video.style.clipPath = `polygon(
+                    ${clipX1}px ${clipY1}px,
+                    ${clipX2}px ${clipY1}px,
+                    ${clipX2}px ${clipY2}px,
+                    ${clipX1}px ${clipY2}px
+                )`;
+                
+                video.style.left = '0';
+                video.style.top = '0';
                 
             } else {
                 // クロップなし
@@ -827,6 +810,7 @@
                 video.style.position = 'relative';
                 video.style.left = '0';
                 video.style.top = '0';
+                video.style.clipPath = 'none';
             }
         }
 
