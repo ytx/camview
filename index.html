@@ -54,7 +54,7 @@
             z-index: 10;
         }
 
-        #videoContainer.mqtt-error {
+        #videoContainer.mqtt-error:not(:fullscreen) {
             border: 4px solid #f00;
         }
 
@@ -92,6 +92,12 @@
             transition: opacity 0.3s, background 0.3s;
             font-size: 24px;
         }
+        
+        body:fullscreen #settingsButton,
+        body:-webkit-full-screen #settingsButton,
+        body:-moz-full-screen #settingsButton {
+            opacity: 1;
+        }
 
         #settingsButton:hover {
             background: rgba(255, 255, 255, 0.2);
@@ -111,6 +117,12 @@
             background: rgba(0, 0, 0, 0.7);
             padding: 8px 16px;
             border-radius: 24px;
+        }
+        
+        body:fullscreen #recordingIndicator,
+        body:-webkit-full-screen #recordingIndicator,
+        body:-moz-full-screen #recordingIndicator {
+            right: 20px;
         }
 
         #recordingIndicator.recording {
@@ -185,8 +197,18 @@
         }
 
         .close-button {
-            float: right;
             background: #f44336;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            margin-left: 10px;
+        }
+        
+        .settings-modal-button {
+            background: #4CAF50;
             border: none;
             color: white;
             padding: 8px 16px;
@@ -311,7 +333,7 @@
             font-size: 12px;
         }
 
-        #modal {
+        #modal, #settingsModalDialog {
             display: none;
             position: fixed;
             top: 0;
@@ -324,7 +346,7 @@
             justify-content: center;
         }
 
-        #modal.open {
+        #modal.open, #settingsModalDialog.open {
             display: flex;
         }
 
@@ -332,10 +354,81 @@
             background: #2a2a2a;
             padding: 30px;
             border-radius: 8px;
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
             max-height: 80vh;
             overflow-y: auto;
+        }
+        
+        .modal-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #444;
+        }
+        
+        .modal-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        
+        .modal-tab:hover {
+            color: #fff;
+        }
+        
+        .modal-tab.active {
+            color: #fff;
+            border-bottom-color: #4CAF50;
+        }
+        
+        .modal-tab-content {
+            display: none;
+        }
+        
+        .modal-tab-content.active {
+            display: block;
+        }
+        
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            z-index: 10000;
+            display: none;
+            max-width: 600px;
+            text-align: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        #toast.show {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        
+        #toast h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        #toast p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #ccc;
         }
 
         .modal-buttons {
@@ -442,7 +535,10 @@
                 </div>
 
                 <div class="settings-sidebar">
-                    <button class="close-button" id="closeSettings">閉じる</button>
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button class="settings-modal-button" id="openSettingsModal">設定</button>
+                        <button class="close-button" id="closeSettings">閉じる</button>
+                    </div>
                     
                     <div class="settings-section">
                         <h3>変形・回転</h3>
@@ -557,18 +653,74 @@
                             <input type="color" id="backgroundColor" value="#000000">
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
 
-                    <div class="settings-section">
-                        <h3>MQTT設定</h3>
-                        <button class="mqtt-button" id="openMqttSettings">MQTT接続設定</button>
+        <div id="settingsModalDialog">
+            <div class="modal-content">
+                <div class="modal-tabs">
+                    <button class="modal-tab active" data-tab="mqtt">MQTT設定</button>
+                    <button class="modal-tab" data-tab="cameras">カメラ選択</button>
+                    <button class="modal-tab" data-tab="export">エクスポート/インポート</button>
+                </div>
+                
+                <div id="mqttTab" class="modal-tab-content active">
+                    <h3>MQTT接続設定</h3>
+                    <div class="setting-item">
+                        <label>プロトコル</label>
+                        <select id="mqttProtocol">
+                            <option value="ws">WebSocket (ws)</option>
+                            <option value="wss">WebSocket Secure (wss)</option>
+                        </select>
                     </div>
+                    <div class="setting-item">
+                        <label>ホスト</label>
+                        <input type="text" id="mqttHost" placeholder="localhost">
+                    </div>
+                    <div class="setting-item">
+                        <label>ポート</label>
+                        <input type="number" id="mqttPort" placeholder="9001">
+                    </div>
+                    <div class="setting-item">
+                        <label>トピックプレフィックス</label>
+                        <input type="text" id="mqttPrefix" placeholder="camview/device1">
+                    </div>
+                    <div class="setting-item">
+                        <label>Will トピック</label>
+                        <input type="text" id="mqttWillTopic" placeholder="camview/device1/status">
+                    </div>
+                    <div class="setting-item">
+                        <label>Will ペイロード</label>
+                        <input type="text" id="mqttWillPayload" placeholder="away">
+                    </div>
+                    <div class="setting-item">
+                        <label>ユーザー名（オプション）</label>
+                        <input type="text" id="mqttUsername">
+                    </div>
+                    <div class="setting-item">
+                        <label>パスワード（オプション）</label>
+                        <input type="password" id="mqttPassword">
+                    </div>
+                </div>
+                
+                <div id="camerasTab" class="modal-tab-content">
+                    <h3>カメラ選択</h3>
+                    <div id="modalCameraList" class="checkbox-list"></div>
+                </div>
+                
+                <div id="exportTab" class="modal-tab-content">
+                    <h3>設定のエクスポート/インポート</h3>
+                    <div style="margin-bottom: 15px;">
+                        <button id="exportSettingsBtn">エクスポート</button>
+                        <button class="secondary" id="importSettingsBtn" style="margin-left: 10px;">インポート</button>
+                    </div>
+                    <textarea id="settingsJson" placeholder="設定JSON" style="min-height: 300px;"></textarea>
+                </div>
 
-                    <div class="settings-section">
-                        <h3>エクスポート/インポート</h3>
-                        <button id="exportSettings">エクスポート</button>
-                        <button class="secondary" id="importSettings" style="margin-top: 10px;">インポート</button>
-                        <textarea id="settingsJson" style="margin-top: 10px;" placeholder="設定JSON"></textarea>
-                    </div>
+                <div class="modal-buttons">
+                    <button id="settingsModalCancel" class="danger">キャンセル</button>
+                    <button id="settingsModalConfirm">OK</button>
                 </div>
             </div>
         </div>
@@ -593,6 +745,11 @@
                 </div>
             </div>
         </div>
+        
+        <div id="toast">
+            <h3>キーボード操作</h3>
+            <p>←/→: カメラ切り替え | S: 設定 | F: フルスクリーン | R: 録画 | 1/2/3: 再生 | ESC: 閉じる/停止</p>
+        </div>
     </div>
 
     <script>
@@ -611,6 +768,7 @@
         let db = null;
         let isPlayingRecording = false;
         let currentPlayingIndex = -1;
+        let isFirstLoad = true;
 
         const MAX_RECORDING_DURATION = 60000; // 60秒
         const MAX_RECORDINGS = 3;
@@ -1185,8 +1343,125 @@
             }
         }
 
-        // MQTT設定モーダルを開く
-        function openMqttSettingsModal() {
+        // トーストメッセージの表示
+        function showToast(duration = 5000) {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+        
+        // MQTT設定モーダルを開く（新しいタブ式モーダル）
+        function openSettingsModal() {
+            const settings = getMqttSettings() || {
+                host: 'localhost',
+                port: 9001,
+                protocol: 'ws',
+                prefix: 'camview/device1',
+                willTopic: 'camview/device1/status',
+                willPayload: 'away',
+                username: '',
+                password: ''
+            };
+
+            document.getElementById('mqttProtocol').value = settings.protocol || 'ws';
+            document.getElementById('mqttHost').value = settings.host || '';
+            document.getElementById('mqttPort').value = settings.port || '';
+            document.getElementById('mqttPrefix').value = settings.prefix || '';
+            document.getElementById('mqttWillTopic').value = settings.willTopic || '';
+            document.getElementById('mqttWillPayload').value = settings.willPayload || '';
+            document.getElementById('mqttUsername').value = settings.username || '';
+            document.getElementById('mqttPassword').value = settings.password || '';
+            
+            // カメラリストを更新
+            updateModalCameraList();
+            
+            document.getElementById('settingsModalDialog').classList.add('open');
+        }
+        
+        // 設定モーダルを閉じる
+        function closeSettingsModal() {
+            document.getElementById('settingsModalDialog').classList.remove('open');
+        }
+        
+        // モーダル内のカメラリストを更新
+        function updateModalCameraList() {
+            const list = document.getElementById('modalCameraList');
+            list.innerHTML = '';
+
+            allCameras.forEach(camera => {
+                const item = document.createElement('div');
+                item.className = 'checkbox-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `modal_camera_${camera.deviceId}`;
+                checkbox.checked = selectedCameras.some(c => c.deviceId === camera.deviceId);
+                checkbox.dataset.deviceId = camera.deviceId;
+                
+                const label = document.createElement('label');
+                label.htmlFor = `modal_camera_${camera.deviceId}`;
+                label.textContent = camera.label || `カメラ ${camera.deviceId}`;
+                
+                item.appendChild(checkbox);
+                item.appendChild(label);
+                list.appendChild(item);
+            });
+        }
+        
+        // 設定モーダルのOKボタン処理
+        function confirmSettingsModal() {
+            // 現在のタブを確認
+            const activeTab = document.querySelector('.modal-tab.active').dataset.tab;
+            
+            if (activeTab === 'mqtt') {
+                // MQTT設定を保存
+                const newSettings = {
+                    protocol: document.getElementById('mqttProtocol').value,
+                    host: document.getElementById('mqttHost').value,
+                    port: parseInt(document.getElementById('mqttPort').value),
+                    prefix: document.getElementById('mqttPrefix').value,
+                    willTopic: document.getElementById('mqttWillTopic').value,
+                    willPayload: document.getElementById('mqttWillPayload').value,
+                    username: document.getElementById('mqttUsername').value,
+                    password: document.getElementById('mqttPassword').value
+                };
+                
+                saveMqttSettings(newSettings);
+                connectMqtt(newSettings);
+            } else if (activeTab === 'cameras') {
+                // カメラ選択を保存
+                saveSettingsFromUI();
+                
+                const checkboxes = document.querySelectorAll('#modalCameraList input[type="checkbox"]:checked');
+                const newSelectedCameras = Array.from(checkboxes).map(cb => {
+                    return allCameras.find(c => c.deviceId === cb.dataset.deviceId);
+                }).filter(c => c);
+                
+                if (newSelectedCameras.length === 0) {
+                    alert('少なくとも1つのカメラを選択してください');
+                    return;
+                }
+                
+                selectedCameras = newSelectedCameras;
+                
+                if (currentCameraIndex >= selectedCameras.length) {
+                    currentCameraIndex = 0;
+                }
+                
+                startCamera(selectedCameras[currentCameraIndex].deviceId);
+                updateCameraCheckboxList();
+                loadSettingsToUI();
+                saveSettings();
+            }
+            
+            closeSettingsModal();
+        }
+        
+        // MQTT設定モーダルを開く（旧版 - 削除）
+        // MQTT設定モーダルを開く（旧版 - 削除）
+        function openMqttSettingsModal_old() {
             const settings = getMqttSettings() || {
                 host: 'localhost',
                 port: 9001,
@@ -1460,6 +1735,12 @@
             await startCamera(selectedCameras[0].deviceId);
             updateCameraCheckboxList();
             saveSettings();
+            
+            // 初回ロード時のみトーストを表示
+            if (isFirstLoad) {
+                isFirstLoad = false;
+                setTimeout(() => showToast(5000), 500);
+            }
         }
 
         // エクスポート
@@ -1520,6 +1801,7 @@
                 }
                 
                 updateCameraCheckboxList();
+                updateModalCameraList();
                 loadSettingsToUI();
                 
                 // MQTT再接続
@@ -1547,6 +1829,9 @@
         function setupEventListeners() {
             // キーボードイベント
             document.addEventListener('keydown', (e) => {
+                // 設定画面が開いているときは録画再生キーを無効化
+                const settingsOpen = document.getElementById('settingsPanel').classList.contains('open');
+                
                 if (e.key === 'ArrowLeft') {
                     e.preventDefault();
                     if (!isPlayingRecording) switchCamera(-1);
@@ -1577,7 +1862,7 @@
                     } else {
                         startRecording();
                     }
-                } else if (e.key === '1' || e.key === '2' || e.key === '3') {
+                } else if ((e.key === '1' || e.key === '2' || e.key === '3') && !settingsOpen) {
                     e.preventDefault();
                     const index = parseInt(e.key) - 1;
                     playRecordingByIndex(index);
@@ -1588,15 +1873,30 @@
             document.getElementById('settingsButton').onclick = openSettings;
             document.getElementById('closeSettings').onclick = closeSettings;
 
-            // MQTT設定
-            document.getElementById('openMqttSettings').onclick = openMqttSettingsModal;
+            // 設定モーダル
+            document.getElementById('openSettingsModal').onclick = openSettingsModal;
+            document.getElementById('settingsModalCancel').onclick = closeSettingsModal;
+            document.getElementById('settingsModalConfirm').onclick = confirmSettingsModal;
+            
+            // モーダルタブ切り替え
+            document.querySelectorAll('.modal-tab').forEach(tab => {
+                tab.onclick = () => {
+                    document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+                };
+            });
+
+            // MQTT設定（旧）
+            // document.getElementById('openMqttSettings').onclick = openMqttSettingsModal;
 
             // モーダル
             document.getElementById('modalCancel').onclick = closeModal;
 
             // エクスポート/インポート
-            document.getElementById('exportSettings').onclick = exportSettings;
-            document.getElementById('importSettings').onclick = importSettings;
+            document.getElementById('exportSettingsBtn').onclick = exportSettings;
+            document.getElementById('importSettingsBtn').onclick = importSettings;
 
             // 初期カメラ選択
             document.getElementById('confirmCameraSelection').onclick = confirmInitialCameraSelection;
@@ -1707,6 +2007,12 @@
                     currentCameraIndex = Math.min(settings.currentCameraIndex || 0, selectedCameras.length - 1);
                     await startCamera(selectedCameras[currentCameraIndex].deviceId);
                     updateCameraCheckboxList();
+                    
+                    // 初回ロード時のみトーストを表示
+                    if (isFirstLoad) {
+                        isFirstLoad = false;
+                        setTimeout(() => showToast(5000), 500);
+                    }
                     
                     // MQTT自動接続
                     const mqttSettings = getMqttSettings();
