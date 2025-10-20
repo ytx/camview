@@ -1003,6 +1003,14 @@
             modal.classList.add('open');
         }
 
+        // 録画再生（インデックス指定）
+        async function playRecordingByIndex(index) {
+            const recordings = await getRecordings();
+            if (index >= 0 && index < recordings.length) {
+                await playRecording(recordings[index].id);
+            }
+        }
+        
         // 録画再生
         async function playRecording(id) {
             const recordings = await getRecordings();
@@ -1552,6 +1560,10 @@
                     } else {
                         startRecording();
                     }
+                } else if (e.key === '1' || e.key === '2' || e.key === '3') {
+                    e.preventDefault();
+                    const index = parseInt(e.key) - 1;
+                    playRecordingByIndex(index);
                 }
             });
 
