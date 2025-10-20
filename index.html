@@ -795,30 +795,6 @@
                 return;
             }
             
-            // カメラが1920x1080でない場合、中央の1920x1080相当を切り出す
-            let cropSourceX = 0;
-            let cropSourceY = 0;
-            let sourceWidth = videoWidth;
-            let sourceHeight = videoHeight;
-            
-            // カメラ映像から1920x1080の中央部分を計算
-            const targetAspect = 16 / 9;
-            const videoAspect = videoWidth / videoHeight;
-            
-            if (videoAspect > targetAspect) {
-                // 横長の場合、高さを基準に幅を切り取る
-                sourceHeight = videoHeight;
-                sourceWidth = videoHeight * targetAspect;
-                cropSourceX = (videoWidth - sourceWidth) / 2;
-                cropSourceY = 0;
-            } else if (videoAspect < targetAspect) {
-                // 縦長の場合、幅を基準に高さを切り取る
-                sourceWidth = videoWidth;
-                sourceHeight = videoWidth / targetAspect;
-                cropSourceX = 0;
-                cropSourceY = (videoHeight - sourceHeight) / 2;
-            }
-            
             // コンテナのサイズを取得
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
@@ -829,38 +805,56 @@
                 return;
             }
             
+            // カメラが1920x1080でない場合の処理
+            const targetAspect = 16 / 9;
+            const videoAspect = videoWidth / videoHeight;
+            
             if (settings.sizeX1 !== 0 || settings.sizeY1 !== 0 || 
                 settings.sizeX2 !== 1920 || settings.sizeY2 !== 1080) {
                 
-                // 1920x1080基準での表示範囲の比率計算
+                // クロップあり
+                // 1920x1080基準のクロップ座標を実際のビデオサイズに変換
+                let sourceWidth = videoWidth;
+                let sourceHeight = videoHeight;
+                let cropSourceX = 0;
+                let cropSourceY = 0;
+                
+                // 16:9部分を切り出す
+                if (videoAspect > targetAspect) {
+                    sourceHeight = videoHeight;
+                    sourceWidth = videoHeight * targetAspect;
+                    cropSourceX = (videoWidth - sourceWidth) / 2;
+                } else if (videoAspect < targetAspect) {
+                    sourceWidth = videoWidth;
+                    sourceHeight = videoWidth / targetAspect;
+                    cropSourceY = (videoHeight - sourceHeight) / 2;
+                }
+                
                 const scaleX = sourceWidth / 1920;
                 const scaleY = sourceHeight / 1080;
                 
-                // クロップ領域の実際のピクセル座標（ソース映像上）
+                // クロップ領域の実際のピクセル座標
                 const actualX1 = cropSourceX + settings.sizeX1 * scaleX;
                 const actualY1 = cropSourceY + settings.sizeY1 * scaleY;
                 const actualX2 = cropSourceX + settings.sizeX2 * scaleX;
                 const actualY2 = cropSourceY + settings.sizeY2 * scaleY;
                 
-                // クロップ領域のサイズ
                 const cropWidth = actualX2 - actualX1;
                 const cropHeight = actualY2 - actualY1;
                 
-                // 表示スケールの計算（コンテナいっぱいに表示）
+                // 表示スケール
                 const displayScale = Math.max(containerWidth / cropWidth, containerHeight / cropHeight);
                 
-                // ビデオ要素のサイズ
                 const displayVideoWidth = videoWidth * displayScale;
                 const displayVideoHeight = videoHeight * displayScale;
                 
-                video.style.maxWidth = 'none';
-                video.style.maxHeight = 'none';
                 video.style.width = `${displayVideoWidth}px`;
                 video.style.height = `${displayVideoHeight}px`;
+                video.style.maxWidth = 'none';
+                video.style.maxHeight = 'none';
                 video.style.objectFit = 'none';
                 video.style.position = 'absolute';
                 
-                // ビデオの位置調整（クロップ領域が中央に来るように）
                 const offsetX = -actualX1 * displayScale + (containerWidth - cropWidth * displayScale) / 2;
                 const offsetY = -actualY1 * displayScale + (containerHeight - cropHeight * displayScale) / 2;
                 
@@ -869,30 +863,15 @@
                 video.style.clipPath = 'none';
                 
             } else {
-                // クロップなし - 16:9の中央部分をコンテナいっぱいに表示
-                
-                // コンテナのアスペクト比に応じてスケール調整
-                const containerAspect = containerWidth / containerHeight;
-                const displayScale = containerAspect > targetAspect
-                    ? containerHeight / sourceHeight
-                    : containerWidth / sourceWidth;
-                
-                const displayVideoWidth = videoWidth * displayScale;
-                const displayVideoHeight = videoHeight * displayScale;
-                
+                // クロップなし - シンプルに object-fit: cover で表示
+                video.style.width = `${containerWidth}px`;
+                video.style.height = `${containerHeight}px`;
                 video.style.maxWidth = 'none';
                 video.style.maxHeight = 'none';
-                video.style.width = `${displayVideoWidth}px`;
-                video.style.height = `${displayVideoHeight}px`;
-                video.style.objectFit = 'none';
+                video.style.objectFit = 'cover';
                 video.style.position = 'absolute';
-                
-                // 中央配置の計算
-                const offsetX = -cropSourceX * displayScale + (containerWidth - sourceWidth * displayScale) / 2;
-                const offsetY = -cropSourceY * displayScale + (containerHeight - sourceHeight * displayScale) / 2;
-                
-                video.style.left = `${offsetX}px`;
-                video.style.top = `${offsetY}px`;
+                video.style.left = '0px';
+                video.style.top = '0px';
                 video.style.clipPath = 'none';
             }
         }
