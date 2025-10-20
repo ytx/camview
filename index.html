@@ -901,12 +901,23 @@
         function switchCamera(direction) {
             if (selectedCameras.length === 0) return;
             
+            // 設定画面が開いている場合、現在の設定を保存
+            if (document.getElementById('settingsPanel').classList.contains('open')) {
+                saveSettingsFromUI();
+            }
+            
             currentCameraIndex += direction;
             if (currentCameraIndex < 0) currentCameraIndex = selectedCameras.length - 1;
             if (currentCameraIndex >= selectedCameras.length) currentCameraIndex = 0;
             
             const camera = selectedCameras[currentCameraIndex];
             startCamera(camera.deviceId);
+            
+            // 設定画面が開いている場合、新しいカメラの設定をUIに読み込む
+            if (document.getElementById('settingsPanel').classList.contains('open')) {
+                loadSettingsToUI();
+            }
+            
             saveSettings();
         }
 
@@ -1371,6 +1382,9 @@
                 checkbox.id = `camera_${camera.deviceId}`;
                 checkbox.checked = selectedCameras.some(c => c.deviceId === camera.deviceId);
                 checkbox.onchange = async (e) => {
+                    // 現在の設定を保存
+                    saveSettingsFromUI();
+                    
                     if (e.target.checked) {
                         selectedCameras.push(camera);
                     } else {
@@ -1383,6 +1397,9 @@
                         }
                         const currentCamera = selectedCameras[currentCameraIndex];
                         await startCamera(currentCamera.deviceId);
+                        
+                        // 新しいカメラの設定をUIに読み込む
+                        loadSettingsToUI();
                     }
                     
                     saveSettings();
