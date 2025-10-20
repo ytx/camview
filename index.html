@@ -764,21 +764,69 @@
             const video = document.getElementById('video');
             const container = document.getElementById('videoContainer');
             
+            container.style.background = settings.backgroundColor;
+            
             if (settings.sizeX1 !== 0 || settings.sizeY1 !== 0 || 
                 settings.sizeX2 !== 1920 || settings.sizeY2 !== 1080) {
                 
-                const width = settings.sizeX2 - settings.sizeX1;
-                const height = settings.sizeY2 - settings.sizeY1;
-                const scaleX = 1920 / width;
-                const scaleY = 1080 / height;
+                // ビデオの実際のサイズを取得
+                const videoWidth = video.videoWidth || 1920;
+                const videoHeight = video.videoHeight || 1080;
                 
+                // クロップ領域のサイズ
+                const cropWidth = settings.sizeX2 - settings.sizeX1;
+                const cropHeight = settings.sizeY2 - settings.sizeY1;
+                
+                // スケール計算（FullHD基準からビデオの実サイズへの変換）
+                const scaleX = videoWidth / 1920;
+                const scaleY = videoHeight / 1080;
+                
+                // ビデオ要素のサイズを調整（クロップ領域が画面全体に表示されるように拡大）
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+                
+                // クロップ領域のアスペクト比
+                const cropAspect = cropWidth / cropHeight;
+                const containerAspect = containerWidth / containerHeight;
+                
+                let displayWidth, displayHeight;
+                if (containerAspect > cropAspect) {
+                    // コンテナの方が横長
+                    displayHeight = containerHeight;
+                    displayWidth = displayHeight * cropAspect;
+                } else {
+                    // コンテナの方が縦長
+                    displayWidth = containerWidth;
+                    displayHeight = displayWidth / cropAspect;
+                }
+                
+                // ビデオ全体のスケール（クロップ領域が表示サイズに合うように）
+                const videoScale = displayWidth / cropWidth;
+                
+                video.style.width = `${videoWidth * videoScale}px`;
+                video.style.height = `${videoHeight * videoScale}px`;
                 video.style.objectFit = 'none';
-                video.style.objectPosition = `${-settings.sizeX1}px ${-settings.sizeY1}px`;
-                container.style.background = settings.backgroundColor;
+                
+                // クロップ位置の調整（x1,y1の位置が左上に来るように）
+                const offsetX = -settings.sizeX1 * videoScale;
+                const offsetY = -settings.sizeY1 * videoScale;
+                
+                // 中央配置のための調整
+                const centerX = (containerWidth - displayWidth) / 2;
+                const centerY = (containerHeight - displayHeight) / 2;
+                
+                video.style.position = 'absolute';
+                video.style.left = `${centerX + offsetX}px`;
+                video.style.top = `${centerY + offsetY}px`;
+                
             } else {
+                // クロップなし
+                video.style.width = '100%';
+                video.style.height = '100%';
                 video.style.objectFit = 'contain';
-                video.style.objectPosition = 'center';
-                container.style.background = '#000';
+                video.style.position = 'relative';
+                video.style.left = '0';
+                video.style.top = '0';
             }
         }
 
@@ -1181,7 +1229,6 @@
             document.getElementById('settingsPanel').classList.remove('open');
             document.getElementById('videoContainer').classList.remove('settings-open');
             saveSettingsFromUI();
-            applyVideoSettings();
         }
 
         // UIから設定を保存
@@ -1477,12 +1524,79 @@
             // 初期カメラ選択
             document.getElementById('confirmCameraSelection').onclick = confirmInitialCameraSelection;
 
-            // レンジ入力の値表示更新
+            // レンジ入力の値表示更新とリアルタイム反映
             const ranges = ['brightness', 'contrast', 'hueRotate', 'saturate', 'blur', 
                            'sepia', 'grayscale', 'opacity', 'invert'];
             ranges.forEach(id => {
-                document.getElementById(id).addEventListener('input', updateRangeValues);
+                document.getElementById(id).addEventListener('input', () => {
+                    updateRangeValues();
+                    applyVideoSettingsRealtime();
+                });
             });
+            
+            // チェックボックスとセレクトのリアルタイム反映
+            ['flipH', 'flipV'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applyVideoSettingsRealtime);
+            });
+            document.getElementById('rotate').addEventListener('change', applyVideoSettingsRealtime);
+            document.getElementById('backgroundColor').addEventListener('input', applyVideoSettingsRealtime);
+            
+            // 表示領域のリアルタイム反映
+            ['sizeX1', 'sizeY1', 'sizeX2', 'sizeY2'].forEach(id => {
+                document.getElementById(id).addEventListener('input', applyVideoSettingsRealtime);
+            });
+        }
+        
+        // リアルタイムで設定を反映（保存はしない）
+        function applyVideoSettingsRealtime() {
+            const camera = selectedCameras[currentCameraIndex];
+            if (!camera) return;
+
+            const settings = {
+                flipH: document.getElementById('flipH').checked,
+                flipV: document.getElementById('flipV').checked,
+                rotate: parseInt(document.getElementById('rotate').value),
+                brightness: parseInt(document.getElementById('brightness').value),
+                contrast: parseInt(document.getElementById('contrast').value),
+                hueRotate: parseInt(document.getElementById('hueRotate').value),
+                saturate: parseInt(document.getElementById('saturate').value),
+                blur: parseInt(document.getElementById('blur').value),
+                sepia: parseInt(document.getElementById('sepia').value),
+                grayscale: parseInt(document.getElementById('grayscale').value),
+                opacity: parseInt(document.getElementById('opacity').value),
+                invert: parseInt(document.getElementById('invert').value),
+                sizeX1: parseInt(document.getElementById('sizeX1').value) || 0,
+                sizeY1: parseInt(document.getElementById('sizeY1').value) || 0,
+                sizeX2: parseInt(document.getElementById('sizeX2').value) || 1920,
+                sizeY2: parseInt(document.getElementById('sizeY2').value) || 1080,
+                backgroundColor: document.getElementById('backgroundColor').value
+            };
+
+            const video = document.getElementById('video');
+            const container = document.getElementById('videoContainer');
+
+            // フィルター適用
+            let filters = [];
+            filters.push(`brightness(${settings.brightness}%)`);
+            filters.push(`contrast(${settings.contrast}%)`);
+            filters.push(`hue-rotate(${settings.hueRotate}deg)`);
+            filters.push(`saturate(${settings.saturate}%)`);
+            filters.push(`blur(${settings.blur}px)`);
+            filters.push(`sepia(${settings.sepia}%)`);
+            filters.push(`grayscale(${settings.grayscale}%)`);
+            filters.push(`opacity(${settings.opacity}%)`);
+            filters.push(`invert(${settings.invert}%)`);
+            video.style.filter = filters.join(' ');
+
+            // 変形・回転
+            let transform = [];
+            if (settings.flipH) transform.push('scaleX(-1)');
+            if (settings.flipV) transform.push('scaleY(-1)');
+            if (settings.rotate !== 0) transform.push(`rotate(${settings.rotate}deg)`);
+            video.style.transform = transform.join(' ');
+
+            // 表示領域（クロップ）
+            applyVideoCrop(settings);
         }
 
         // 初期化
