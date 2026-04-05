@@ -665,6 +665,7 @@
                     <div class="setting-item">
                         <label>プロトコル</label>
                         <select id="mqttProtocol">
+                            <option value="none">使用しない</option>
                             <option value="ws">WebSocket (ws)</option>
                             <option value="wss">WebSocket Secure (wss)</option>
                         </select>
@@ -1281,6 +1282,13 @@
         function connectMqtt(settings) {
             if (mqttClient) {
                 mqttClient.end();
+                mqttClient = null;
+            }
+
+            if (settings.protocol === 'none') {
+                mqttConnected = false;
+                document.getElementById('videoContainer').classList.remove('mqtt-error');
+                return;
             }
 
             try {
@@ -1411,7 +1419,7 @@
             const settings = getMqttSettings() || {
                 host: 'localhost',
                 port: 9001,
-                protocol: 'ws',
+                protocol: 'none',
                 prefix: 'camview/device1',
                 willTopic: 'camview/device1/status',
                 willPayload: 'away',
@@ -1419,7 +1427,7 @@
                 password: ''
             };
 
-            document.getElementById('mqttProtocol').value = settings.protocol || 'ws';
+            document.getElementById('mqttProtocol').value = settings.protocol || 'none';
             document.getElementById('mqttHost').value = settings.host || '';
             document.getElementById('mqttPort').value = settings.port || '';
             document.getElementById('mqttPrefix').value = settings.prefix || '';
@@ -1519,7 +1527,7 @@
             const settings = getMqttSettings() || {
                 host: 'localhost',
                 port: 9001,
-                protocol: 'ws',
+                protocol: 'none',
                 prefix: 'camview/device1',
                 willTopic: 'camview/device1/status',
                 willPayload: 'away',
@@ -1530,12 +1538,13 @@
             const modal = document.getElementById('modal');
             const modalTitle = document.getElementById('modalTitle');
             const modalBody = document.getElementById('modalBody');
-            
+
             modalTitle.textContent = 'MQTT接続設定';
             modalBody.innerHTML = `
                 <div class="setting-item">
                     <label>プロトコル</label>
                     <select id="mqttProtocol">
+                        <option value="none" ${settings.protocol === 'none' ? 'selected' : ''}>使用しない</option>
                         <option value="ws" ${settings.protocol === 'ws' ? 'selected' : ''}>WebSocket (ws)</option>
                         <option value="wss" ${settings.protocol === 'wss' ? 'selected' : ''}>WebSocket Secure (wss)</option>
                     </select>
@@ -1582,7 +1591,7 @@
                     username: document.getElementById('mqttUsername').value,
                     password: document.getElementById('mqttPassword').value
                 };
-                
+
                 saveMqttSettings(newSettings);
                 connectMqtt(newSettings);
                 closeModal();
