@@ -764,6 +764,7 @@
         let isPlayingRecording = false;
         let currentPlayingIndex = -1;
         let hasShownToast = false;
+        let isCameraDisconnected = false;
 
         const MAX_RECORDING_DURATION = 60000; // 60秒
         const MAX_RECORDINGS = 3;
@@ -889,9 +890,19 @@
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 const video = document.getElementById('video');
                 video.srcObject = mediaStream;
-                
+
                 hideError();
-                
+                isCameraDisconnected = false;
+                hideDisconnectMessage();
+
+                // トラック切断の監視
+                const videoTrack = mediaStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.addEventListener('ended', () => {
+                        handleCameraDisconnect();
+                    });
+                }
+
                 // ビデオのメタデータが読み込まれたら設定を適用
                 video.onloadedmetadata = () => {
                     applyVideoSettings();
@@ -901,7 +912,7 @@
                         showToast(5000);
                     }
                 };
-                
+
                 return true;
             } catch (error) {
                 showError('カメラの起動に失敗しました', error.message);
@@ -1352,6 +1363,49 @@
             }, duration);
         }
         
+        // カメラ切断時の処理
+        function handleCameraDisconnect() {
+            if (isCameraDisconnected) return;
+            isCameraDisconnected = true;
+
+            // 録画中なら停止して保存
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                stopRecording();
+            }
+
+            showDisconnectMessage();
+        }
+
+        // 切断メッセージの表示（トースト形式、自動消去なし）
+        function showDisconnectMessage() {
+            const toast = document.getElementById('toast');
+            toast.querySelector('h3').textContent = 'カメラが切断されました';
+            toast.querySelector('p').textContent = '再接続を待っています...';
+            toast.classList.add('show');
+        }
+
+        // 切断メッセージの非表示＆トースト内容を元に戻す
+        function hideDisconnectMessage() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('show');
+            toast.querySelector('h3').textContent = 'キーボード操作';
+            toast.querySelector('p').textContent = '←/→: カメラ切り替え | S: 設定 | F: フルスクリーン | R: 録画 | 1/2/3: 再生 | 0: 停止';
+        }
+
+        // デバイス変更イベントで切断カメラの復帰を試みる
+        async function handleDeviceChange() {
+            if (!isCameraDisconnected) return;
+
+            const camera = selectedCameras[currentCameraIndex];
+            if (!camera) return;
+
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const found = devices.find(d => d.kind === 'videoinput' && d.deviceId === camera.deviceId);
+            if (found) {
+                await startCamera(camera.deviceId);
+            }
+        }
+
         // MQTT設定モーダルを開く（新しいタブ式モーダル）
         function openSettingsModal() {
             const settings = getMqttSettings() || {
@@ -1646,6 +1700,7 @@
         // カメラチェックボックスリストの更新
         function updateCameraCheckboxList() {
             const list = document.getElementById('cameraCheckboxList');
+            if (!list) return;
             list.innerHTML = '';
 
             allCameras.forEach(camera => {
@@ -1986,6 +2041,7 @@
         async function init() {
             await initDB();
             setupEventListeners();
+            navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
             
             const settings = loadSettings();
             allCameras = await getCameras();
